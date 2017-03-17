@@ -137,12 +137,12 @@ public:
 
     /// Receives "brics_actuator/JointVelocities" for the arm joints
     ros::Subscriber armVelocityCommandSubscriber;
-    
+
     /// Receives "brics_actuator/JointTorques" for the arm joints
     ros::Subscriber armTorquesCommandSubscriber;
 
-	/// Implements a "control_msgs/FollowJointTrajectory" action
-	actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> *armJointTrajectoryAction;
+    /// Implements a "control_msgs/FollowJointTrajectory" action
+    actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> *armJointTrajectoryAction;
 
     /// Another test for trajectory
     actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> *armJointVelTrajectoryAction;
@@ -162,6 +162,9 @@ public:
 
     /// Service to calibrate the arm
     ros::ServiceServer calibrateService;
+
+    /// Service to manipulate pose
+    ros::ServiceServer manipulatorPoseService;
 
     //Server* trajectoryActionServer;
     //JointTrajectoryAction* jointTrajectoryAction;
@@ -200,10 +203,10 @@ public:
     /// A youbot system has one or more arms
     std::vector<YouBotArmConfiguration> youBotArmConfigurations;
     std::map<std::string, int> armNameToArmIndexMapping;
-    
+
     /// Publishes diagnostic messages
     ros::Publisher diagnosticArrayPublisher;
-    
+
     ros::Publisher dashboardMessagePublisher;
 };
 

@@ -6,6 +6,14 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs roscpp actio
 find_package(Boost REQUIRED COMPONENTS thread date_time filesystem system)
 find_package(youbot_driver REQUIRED)
 
+add_service_files(DIRECTORY srv FILES
+	JointPositions.srv
+)
+
+generate_messages(DEPENDENCIES
+  brics_actuator
+)
+
 catkin_package(
 	CATKIN_DEPENDS pr2_msgs message_runtime brics_actuator
 )
@@ -19,11 +27,10 @@ INCLUDE_DIRECTORIES(
 	${catkin_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIR}
 	${youbot_driver_INCLUDE_DIRS}
-)	
+)
 
-
-add_executable(youbot_driver_ros_interface 
-    src/youbot_oodl.cpp 
+add_executable(youbot_driver_ros_interface
+    src/youbot_oodl.cpp
     src/YouBotOODLWrapper.cpp
     src/YouBotConfiguration.cpp
 )
@@ -37,13 +44,13 @@ install(DIRECTORY launch/
 )
 
 #test programs
-add_executable(youbot_arm_test 
-    examples/youbot_arm_test.cpp 
+add_executable(youbot_arm_test
+    examples/youbot_arm_test.cpp
 )
 target_link_libraries(youbot_arm_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${youbot_driver_LIBRARIES})
 
-add_executable(youbot_2nd_arm_test 
-    examples/youbot_2nd_arm_test.cpp 
+add_executable(youbot_2nd_arm_test
+    examples/youbot_2nd_arm_test.cpp
 )
 target_link_libraries(youbot_2nd_arm_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${youbot_driver_LIBRARIES})
 
@@ -52,6 +59,6 @@ install(TARGETS youbot_driver_ros_interface youbot_arm_test
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-#add_executable(youbot_arm_velocity_test 
-#    examples/youbot_arm_velocity_test.cpp 
+#add_executable(youbot_arm_velocity_test
+#    examples/youbot_arm_velocity_test.cpp
 #)

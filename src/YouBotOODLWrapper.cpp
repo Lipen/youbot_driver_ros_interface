@@ -57,7 +57,7 @@ node(n)
 
     youBotConfiguration.hasBase = false;
     youBotConfiguration.hasArms = false;
-    areBaseMotorsSwitchedOn = false;    
+    areBaseMotorsSwitchedOn = false;
     areArmMotorsSwitchedOn = false;
 
     youBotChildFrameID = "base_link"; //holds true for both: base and arm
@@ -127,7 +127,7 @@ void YouBotOODLWrapper::initializeArm(std::string armName, bool enableStandardGr
 
     try
     {
-        ROS_INFO("Configuration file path: %s", youBotConfiguration.configurationFilePath.c_str());   
+        ROS_INFO("Configuration file path: %s", youBotConfiguration.configurationFilePath.c_str());
         YouBotArmConfiguration tmpArmConfig;
         youBotConfiguration.youBotArmConfigurations.push_back(tmpArmConfig);
         armIndex = static_cast<int> (youBotConfiguration.youBotArmConfigurations.size()) - 1;
@@ -235,6 +235,11 @@ void YouBotOODLWrapper::initializeArm(std::string armName, bool enableStandardGr
     serviceName.str("");
     serviceName << youBotConfiguration.youBotArmConfigurations[armIndex].commandTopicName << "calibrate"; // e.g. "arm_1/calibrate"
     youBotConfiguration.youBotArmConfigurations[armIndex].calibrateService = node.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response > (serviceName.str(), boost::bind(&YouBotOODLWrapper::calibrateArmCallback, this, _1, _2, armIndex));
+// TRAJECTORY SERVICE
+    serviceName.str("");
+    serviceName << youBotConfiguration.youBotArmConfigurations[armIndex].commandTopicName << "manipulator_pose"; // e.g. "arm_1/manipulator_pose"
+    youBotConfiguration.youBotArmConfigurations[armIndex].manipulatorPoseService = node.advertiseService<youbot_driver_ros_interface::JointPositions::Request, youbot_driver_ros_interface::JointPositions::Response>(serviceName.str(), boost::bind(&YouBotOODLWrapper::armManipulatorPoseCallback, this, _1, _2, armIndex));
+//
 
     /* initialize message vector for arm joint states */
     sensor_msgs::JointState dummyMessage;
@@ -479,7 +484,7 @@ void YouBotOODLWrapper::armVelocitiesCommandCallback(const brics_actuator::Joint
     else
     {
         ROS_ERROR("Arm%i is not correctly initialized!", armIndex + 1);
-    }   
+    }
 }
 
 void YouBotOODLWrapper::armTorquesCommandCallback(const brics_actuator::JointTorquesConstPtr& youbotArmCommand, int armIndex)
@@ -585,7 +590,7 @@ void YouBotOODLWrapper::armJointTrajectoryGoalCallback(actionlib::ActionServer<c
     }
 
     std::vector<youbot::JointTrajectory> jointTrajectories(youBotArmDoF);
-  
+
     // convert from the ROS trajectory representation to the controller's representation
     std::vector<std::vector< quantity<plane_angle> > > positions(youBotArmDoF);
     std::vector<std::vector< quantity<angular_velocity> > > velocities(youBotArmDoF);
@@ -601,7 +606,7 @@ void YouBotOODLWrapper::armJointTrajectoryGoalCallback(actionlib::ActionServer<c
             youbotArmGoal.setRejected();
             return;
         }
-    
+
         for (int j = 0; j < youBotArmDoF; j++) {
             segment.positions = point.positions[j]*radian;
             segment.velocities = point.velocities[j]*radian_per_second;
@@ -781,7 +786,7 @@ void YouBotOODLWrapper::armJointVelTrajectoryGoalCallback(actionlib::ActionServe
     size_t p = 1;
     ros::Time startTime = ros::Time::now();
     while (!desired) {
-        
+
         jointAngleErr = desiredJointAngles - jointAngles;
         // jointAngVelErr = desiredJointAngVel - jointAngVel;
 
@@ -1128,7 +1133,7 @@ void YouBotOODLWrapper::computeOODLSensorReadings()
 
 void YouBotOODLWrapper::publishOODLSensorReadings()
 {
-      
+
     if (youBotConfiguration.hasBase)
     {
         youBotConfiguration.baseConfiguration.odometryBroadcaster.sendTransform(odometryTransform);
@@ -1253,7 +1258,7 @@ bool YouBotOODLWrapper::switchOnArmMotorsCallback(std_srvs::Empty::Request& requ
             for(unsigned int i = 0; i < sensedJointAngleVector.size(); i++){
               desiredJointAngle = sensedJointAngleVector[i].angle;
               desiredJointAngleVector.push_back(desiredJointAngle);
-            }        
+            }
             youBotConfiguration.youBotArmConfigurations[armIndex].youBotArm->setJointData(desiredJointAngleVector);
         }
         catch (std::exception& e)
@@ -1339,7 +1344,9 @@ bool YouBotOODLWrapper::reconnectCallback(std_srvs::Empty::Request& request, std
     return true;
 }
 
-void YouBotOODLWrapper::publishArmAndBaseDiagnostics(double publish_rate_in_secs) {
+void YouBotOODLWrapper::publishArmAndBaseDiagnostics(double publish_rate_in_secs)
+{
+
     // only publish every X seconds
     if ((ros::Time::now() - lastDiagnosticPublishTime).toSec() < publish_rate_in_secs)
       return;
@@ -1386,7 +1393,7 @@ void YouBotOODLWrapper::publishArmAndBaseDiagnostics(double publish_rate_in_secs
       diagnosticStatusMessage.level = diagnostic_msgs::DiagnosticStatus::ERROR;
       platformStateMessage.run_stop = true;
     }
-    diagnosticArrayMessage.status.push_back(diagnosticStatusMessage);        
+    diagnosticArrayMessage.status.push_back(diagnosticStatusMessage);
 
 
     // dashboard message
@@ -1409,6 +1416,117 @@ void YouBotOODLWrapper::publishArmAndBaseDiagnostics(double publish_rate_in_secs
     dashboardMessagePublisher.publish(platformStateMessage);
     diagnosticArrayPublisher.publish(diagnosticArrayMessage);
   }
+
+bool YouBotOODLWrapper::armManipulatorPoseCallback(youbot_driver_ros_interface::JointPositions::Request& request, youbot_driver_ros_interface::JointPositions::Response& response, int armIndex)
+{
+    JointValues request_position;
+    request_position(0) = request.positions[0].value;
+    request_position(1) = request.positions[1].value;
+    request_position(2) = request.positions[2].value;
+    request_position(3) = request.positions[3].value;
+    request_position(4) = request.positions[4].value;
+
+    ROS_DEBUG("Call for arm%i received", armIndex + 1);
+    ROS_ASSERT(0 <= armIndex && armIndex < static_cast<int> (youBotConfiguration.youBotArmConfigurations.size()));
+
+    if (youBotConfiguration.youBotArmConfigurations[armIndex].youBotArm != 0) // in case stop has been invoked
+    {
+
+        ROS_DEBUG("Arm ID is: %s", youBotConfiguration.youBotArmConfigurations[armIndex].armID.c_str());
+        if (request.positions.size() < 1)
+        {
+            ROS_WARN("youBot driver received an invalid joint positions command.");
+            return false;
+        }
+
+        youbot::JointAngleSetpoint desiredAngle;
+        string unit = boost::units::to_string(boost::units::si::radian);
+
+        /* populate mapping between joint names and values  */
+        std::map<string, double> jointNameToValueMapping;
+        for (int i = 0; i < youBotArmDoF; ++i)
+        {
+            if (unit == request.positions[i].unit)
+            {
+                jointNameToValueMapping.insert(make_pair(request.positions[i].joint_uri, request.positions[i].value));
+            }
+            else
+            {
+                ROS_WARN("Unit incompatibility. Are you sure you want to command %s instead of %s ?", request.positions[i].unit.c_str(), unit.c_str());
+            }
+        }
+
+        /* loop over all youBot arm joints and check if something is in the received message that requires action */
+        ROS_ASSERT(youBotConfiguration.youBotArmConfigurations[armIndex].jointNames.size() == static_cast<unsigned int> (youBotArmDoF));
+        youbot::EthercatMaster::getInstance().AutomaticSendOn(false); // ensure that all joint values will be send at the same time
+        for (int i = 0; i < youBotArmDoF; ++i)
+        {
+
+            /* check what is in map */
+            map<string, double>::const_iterator jointIterator = jointNameToValueMapping.find(youBotConfiguration.youBotArmConfigurations[armIndex].jointNames[i]);
+            if (jointIterator != jointNameToValueMapping.end())
+            {
+
+                /* set the desired joint value */
+                ROS_DEBUG("Trying to set joint %s to new position value %f", (youBotConfiguration.youBotArmConfigurations[armIndex].jointNames[i]).c_str(), jointIterator->second);
+                desiredAngle.angle = jointIterator->second * radian;
+                try
+                {
+                    youBotConfiguration.youBotArmConfigurations[armIndex].youBotArm->getArmJoint(i + 1).setData(desiredAngle); //youBot joints start with 1 not with 0 -> i + 1
+                }
+                catch (std::exception& e)
+                {
+                    std::string errorMessage = e.what();
+                    ROS_WARN("Cannot set arm joint %i: %s", i + 1, errorMessage.c_str());
+                }
+            }
+        }
+        youbot::EthercatMaster::getInstance().AutomaticSendOn(true); // ensure that all joint values will be send at the same time
+    }
+    else
+    {
+        ROS_ERROR("Arm%i is not correctly initialized!", armIndex + 1);
+        return false;
+    }
+
+    // =================================================================
+
+    youbot::JointSensedAngle currentJointAngle;
+    // youbot::JointSensedVelocity currentJointAngularVel;
+    JointValues jointAngles;
+    // JointValues jointAngVel;
+    JointValues endJointAngles = request_position;
+    double epsilon = 0.01;
+    bool converged = false;
+    ros::Rate rate(50);
+
+    while (!converged) {
+        // Reading data
+        youbot::EthercatMaster::getInstance().AutomaticReceiveOn(false);
+        for (int i = 0; i < youBotArmDoF; ++i) {
+            youBotConfiguration.youBotArmConfigurations[armIndex].youBotArm->getArmJoint(i + 1).getData(currentJointAngle);
+            // youBotConfiguration.youBotArmConfigurations[armIndex].youBotArm->getArmJoint(i + 1).getData(currentJointAngularVel);
+
+            jointAngles(i) = currentJointAngle.angle.value();
+            // jointAngVel(i) = currentJointAngularVel.angularVelocity.value();
+        }
+        youbot::EthercatMaster::getInstance().AutomaticReceiveOn(true);
+
+        // Check convergence
+        converged = true;
+        for (int i = 0; i < youBotArmDoF; ++i)
+        {
+            if (std::fabs(jointAngles(i) - endJointAngles(i)) > epsilon)
+            {
+                converged = false;
+            }
+        }
+
+        rate.sleep();
+    }
+
+    return true;
+}
 
 } // namespace youBot
 
